@@ -2,54 +2,49 @@
   Arduino project "ESP Easy" © Copyright www.letscontrolit.com
   This file incorporates work covered by the following copyright:
   Arduino project "Nodo" © Copyright 2010..2015 Paul Tonkes
-
   All work is covered by the following license notice:
-
   This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
   as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
   This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
   You received a copy of the GNU General Public License along with this program in file 'License.txt'.
-
   Additional information about licensing can be found at : http://www.gnu.org/licenses
   \*************************************************************************************************************************/
 
 // This is a custom Core edition of ESP Easy, based on R120 and some Mega code
 
 /* List of core commands
-Config,DST <0|1>			            	        Enable/Disable DST
-Config,Baudrate <speed>		                  Enable/Disable Serial and speed (speed 0=disable)
-Config,LogEvents <0|1>              				Enable/Disable logging msbus events on telnet session
-Config,MSGBUS,<UDP|MQTT>			              Select protocol to use for the messagebus
-Config,Name					                        Set the device name
-Config,Network <ip>,<mask>,<gateway>,<DNS>	Set static IP config
-Config,NTP <0|1>		                    		Enable/Disable NTP time service client
-Config,Port <portnr>                				MessageBus UPD port number
-Config,Rules,Clock <0|1>	              		Enable/Disable rules processing on clock events (each minute)
-Config,Rules,Serial <0|1>             			Enable/Disable rules processing on serial input
-Config,SendARP <0|1>                				Enable/Disable grat ARP broadcast
-Config,Timezone <offset>              			Timezone offset in minutes (can also be negative)
-Config,WifiSSID <ssid>              				Set the Wifi SSID
-Config,WifiKey <key>                				Set the Wifi WPA key
-Config,WifiAPKey                    				Set the Wifi AP key
-Event <event>                       				Generate event
-Reboot                          						Reboot device
-SerialFloat                       					Makes the serial pins float
-Serial                          						Enables serial (after using float)
-SerialSend <string>                 				Sends a text to serial port
-SerialTelnet <0|1>                  				Enable/Disable Serial/Telnet bridge
-SendToUDP <ip>,<port>,<msg>           			Sends a text string to give IP and port on UDP protocol
-Settings                          					Outputs some basic settings to serial port
-Syslog <string>                   					Sends a text string to syslog using broadcast
-MSGBus <msg>                      					Send a message on the messagebus
-TimerSet <name>,<seconds>             			Set a timer by name to x seconds countdown
-ValueSet <name>,<value>             				Set a variable by name to float value
-StringSet <name>,<text>             				Set a variable by name to string value
-WebPrint <html>                   					Print html to the main webpage (no pararameter clears the buffer)
-WebButton <class>;<href>;<caption> 					Adds a button to the main webpage
-
+Config,DST <0|1>                            Enable/Disable DST
+Config,Baudrate <speed>                     Enable/Disable Serial and speed (speed 0=disable)
+Config,LogEvents <0|1>                      Enable/Disable logging msbus events on telnet session
+Config,MSGBUS,<UDP|MQTT>                    Select protocol to use for the messagebus
+Config,Name                                 Set the device name
+Config,Network <ip>,<mask>,<gateway>,<DNS>  Set static IP config
+Config,NTP <0|1>                            Enable/Disable NTP time service client
+Config,Port <portnr>                        MessageBus UPD port number
+Config,Rules,Clock <0|1>                    Enable/Disable rules processing on clock events (each minute)
+Config,Rules,Serial <0|1>                   Enable/Disable rules processing on serial input
+Config,SendARP <0|1>                        Enable/Disable grat ARP broadcast
+Config,Timezone <offset>                    Timezone offset in minutes (can also be negative)
+Config,WifiSSID <ssid>                      Set the Wifi SSID
+Config,WifiKey <key>                        Set the Wifi WPA key
+Config,WifiAPKey                            Set the Wifi AP key
+Event <event>                               Generate event
+Reboot                                      Reboot device
+SerialFloat                                 Makes the serial pins float
+Serial                                      Enables serial (after using float)
+SerialSend <string>                         Sends a text to serial port
+SerialTelnet <0|1>                          Enable/Disable Serial/Telnet bridge
+SendToUDP <ip>,<port>,<msg>                 Sends a text string to give IP and port on UDP protocol
+Settings                                    Outputs some basic settings to serial port
+Syslog <string>                             Sends a text string to syslog using broadcast
+MSGBus <msg>                                Send a message on the messagebus
+TimerSet <name>,<seconds>                   Set a timer by name to x seconds countdown
+ValueSet <name>,<value>                     Set a variable by name to float value
+StringSet <name>,<text>                     Set a variable by name to string value
+WebPrint <html>                             Print html to the main webpage (no pararameter clears the buffer)
+WebButton <class>;<href>;<caption>          Adds a button to the main webpage
 Plugins commands are explained in the plugin sections
-
 */
 
 // Select features to include into the Core:
@@ -333,7 +328,7 @@ struct SettingsStruct
   boolean       UseMSGBusUDP = true;
   boolean       UseMSGBusMQTT;
   boolean       UseGratuitousARP = false;
-  boolean	      LogEvents = false;
+  boolean       LogEvents = false;
   boolean       ForceAPMode = false;
 } Settings;
 

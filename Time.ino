@@ -1,4 +1,4 @@
-//#if FEATURE_TIME
+#if FEATURE_TIME
 
 #define SECS_PER_MIN  (60UL)
 #define SECS_PER_HOUR (3600UL)
@@ -25,6 +25,20 @@ uint32_t prevMillis = 0;
 uint32_t nextSyncTime = 0;
 
 byte PrevMinutes = 0;
+
+String getTimeString(char delimiter)
+{
+  String reply;
+  if (hour() < 10)
+    reply += F("0");
+  reply += String(hour());
+  if (delimiter != '\0')
+    reply += delimiter;
+  if (minute() < 10)
+    reply += F("0");
+  reply += minute();
+  return reply;
+}
 
 void breakTime(unsigned long timeInput, struct timeStruct &tm) {
   uint8_t year;
@@ -135,7 +149,7 @@ void checkTime()
   if (tm.Minute != PrevMinutes)
   {
     PrevMinutes = tm.Minute;
-    if (Settings.UseRules)
+    if (Settings.RulesClock)
     {
       String weekDays = F("AllSunMonTueWedThuFriSat");
       String event = F("Clock#Time=");
@@ -148,9 +162,70 @@ void checkTime()
       if (minute() < 10)
         event += "0";
       event += minute();
-      rulesProcessing(FILE_BOOT, event);
+      #if FEATURE_RULES
+        rulesProcessing(FILE_RULES, event);
+      #endif
     }
   }
+}
+
+/********************************************************************************************\
+   Convert a string like "Sun,12:30" into a 32 bit integer
+ \*********************************************************************************************/
+unsigned long string2TimeLong(const String &str)
+{
+  // format 0000WWWWAAAABBBBCCCCDDDD
+  // WWWW=weekday, AAAA=hours tens digit, BBBB=hours, CCCC=minutes tens digit DDDD=minutes
+
+  #define TmpStr1Length 10
+  char command[20];
+  char TmpStr1[TmpStr1Length];
+  int w, x, y;
+  unsigned long a;
+  {
+    // Within a scope so the tmpString is only used for copy.
+    String tmpString(str);
+    tmpString.toLowerCase();
+    tmpString.toCharArray(command, 20);
+  }
+  unsigned long lngTime = 0;
+
+  if (GetArgv(command, TmpStr1, 1))
+  {
+    String day = TmpStr1;
+    String weekDays = F("allsunmontuewedthufrisatwrkwkd");
+    y = weekDays.indexOf(TmpStr1) / 3;
+    if (y == 0)
+      y = 0xf; // wildcard is 0xf
+    lngTime |= (unsigned long)y << 16;
+  }
+
+  if (GetArgv(command, TmpStr1, 2))
+  {
+    y = 0;
+    for (x = strlen(TmpStr1) - 1; x >= 0; x--)
+    {
+      w = TmpStr1[x];
+      if ( (w >= '0' && w <= '9') || w == '*')
+      {
+        a = 0xffffffff  ^ (0xfUL << y); // create mask to clean nibble position y
+        lngTime &= a; // maak nibble leeg
+        if (w == '*')
+          lngTime |= (0xFUL << y); // fill nibble with wildcard value
+        else
+          lngTime |= (w - '0') << y; // fill nibble with token
+        y += 4;
+      }
+      else
+        if (w == ':');
+      else
+      {
+        break;
+      }
+    }
+  }
+  #undef TmpStr1Length
+  return lngTime;
 }
 
 
@@ -165,11 +240,7 @@ unsigned long getNtpTime()
 
     IPAddress timeServerIP;
     const char* ntpServerName = "pool.ntp.org";
-
-    //if (Settings.NTPHost[0] != 0)
-    //  WiFi.hostByName(Settings.NTPHost, timeServerIP);
-    //else
-      WiFi.hostByName(ntpServerName, timeServerIP);
+    WiFi.hostByName(ntpServerName, timeServerIP);
 
     while (udp.parsePacket() > 0) ; // discard any previously received packets
 
@@ -203,5 +274,4 @@ unsigned long getNtpTime()
   }
   return 0;
 }
-//#endif
-
+#endif
