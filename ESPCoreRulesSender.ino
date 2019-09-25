@@ -77,7 +77,7 @@ uint64_t myMac =
 
 void setup() {
 
-
+  sensorValues();
   Serial.begin(115200);
   Serial.println();
   Serial.print("Milliseconds passed before setup: ");
@@ -85,9 +85,10 @@ void setup() {
   lastMillis = millis();
   Serial.println();
   delay(1);
+  
 
 #if PROBEREQUESTER
-  wifi_set_macaddr(STATION_IF, irMac);
+//wifi_set_macaddr(STATION_IF, irMac);
   WiFi.disconnect();
   WiFi.hostname("Livingroom");
   Serial.println();
@@ -111,8 +112,8 @@ void setup() {
   irsend.begin();
   irSender();
 #endif
-
-
+  
+  
   passedMillis = millis() - lastMillis;
   Serial.print("Time spent on setup: ");
   Serial.println(passedMillis);
@@ -126,10 +127,12 @@ void setup() {
 
 void loop() {
 
+
+
   //===========================IR loop===============================
 #if IRSENDER
   //irSender();
-#endif
+ #endif
   //=====================Probe request Loop=========================
 
   // put your code here to run in loop or move to setup to run oncce.
@@ -143,7 +146,7 @@ void loop() {
   Serial.print("I will wakeup in: ");
   Serial.print(SLEEP_SECS / 60);
   Serial.println(" Minutes");
-  delay(20000);
+  delay(5000);
   ESP.restart();
   //ESP.deepSleep(0);
 
@@ -163,13 +166,19 @@ void gotoSleep() {                            //need connection between GPIO16 a
 #if PROBEREQUESTER
 //=========================Probe request function starts===========
 
+void sensorValues()     {
+
+  temperature = random(90);
+  irMac[0] = temperature;
+  wifi_set_macaddr(STATION_IF, irMac);
+  
+}
+
 void probeRequest()  {
   Serial.println("Starting Probe sender");
   Serial.println("Sending sensor data over Probe request protocol to Master Node");
   Serial.println();
-
-
-
+ 
   //int8_t scanNetworks(bool async = true, bool show_hidden = false, uint8 channel = 0, uint8* ssid = NULL);
   int n = WiFi.scanNetworks(true, false, apChannel, (uint8*) ssid);
 
