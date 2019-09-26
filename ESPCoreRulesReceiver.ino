@@ -52,7 +52,7 @@ Plugins commands are explained in the plugin sections
 #define FEATURE_MSGBUS                   true
 #define FEATURE_PLUGINS                  true
 #define FEATURE_TIME                     true
-#define FEATURE_MQTT                     false
+#define FEATURE_MQTT                     true
 #if FEATURE_MQTT
 #define FEATURE_MQTTBROKER               false
 #endif
