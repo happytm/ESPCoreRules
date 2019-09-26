@@ -38,7 +38,7 @@ int device = 1;
 #endif
 
 ADC_MODE(ADC_VCC); //vcc read-mode
-uint8 ssid[32] = "Gateway";
+uint8 ssid[32] = "ESP_Controller";
 int apChannel = 7;
 int temperature = 10;
 int humidity = 20;
