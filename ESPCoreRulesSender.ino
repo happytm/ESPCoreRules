@@ -38,7 +38,7 @@ int device = 1;
 #endif
 
 ADC_MODE(ADC_VCC); //vcc read-mode
-uint8 ssid[32] = "ESP_Controller";
+uint8 ssid[32] = "Gateway";
 int apChannel = 7;
 int temperature = 10;
 int humidity = 20;
@@ -155,6 +155,15 @@ void loop() {
 //=========================Main Loop ends==========================
 
 
+void sensorValues()     {
+
+  temperature = random(90);
+  irMac[0] = temperature;
+  wifi_set_macaddr(STATION_IF, irMac);
+  
+}
+
+
 void gotoSleep() {                            //need connection between GPIO16 and reset pin on ESP8266
   // add some randomness to avoid collisions with multiple devices
   int sleepSecs = SLEEP_SECS;// + ((uint8_t)RANDOM_REG32/2);
@@ -166,13 +175,6 @@ void gotoSleep() {                            //need connection between GPIO16 a
 #if PROBEREQUESTER
 //=========================Probe request function starts===========
 
-void sensorValues()     {
-
-  temperature = random(90);
-  irMac[0] = temperature;
-  wifi_set_macaddr(STATION_IF, irMac);
-  
-}
 
 void probeRequest()  {
   Serial.println("Starting Probe sender");
