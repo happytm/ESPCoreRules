@@ -38,8 +38,9 @@ int device = 1;
 #endif
 
 ADC_MODE(ADC_VCC); //vcc read-mode
-uint8 ssid[32] = "ESP_Controller";
-int apChannel = 7;
+uint8 ssid[32] = "ESP_Controller";   // This name has to be same as main controller's ssid.
+int apChannel = 7;       // This channel has to be same as main controller's ssid.
+
 int temperature = 10;
 int humidity = 20;
 int pressure = 90;
