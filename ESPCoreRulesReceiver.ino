@@ -52,9 +52,14 @@ Plugins commands are explained in the plugin sections
 #define FEATURE_MSGBUS                   true
 #define FEATURE_PLUGINS                  true
 #define FEATURE_TIME                     true
-#define FEATURE_MQTT                     true
+#define FEATURE_MQTT                     false
+#if FEATURE_MQTT
+#define FEATURE_MQTTBROKER               false
+#endif
+#if !FEATURE_MQTT
+#define FEATURE_MQTTBROKER               true
+#endif
 #define FEATURE_PROBEREQUEST             true
-#define FEATURE_MQTTBROKER                       false
 #define FEATURE_IR                       true
 
 ///////////////////////////////////////////////////////////////////////
@@ -63,8 +68,8 @@ Plugins commands are explained in the plugin sections
 /*
  * Your WiFi config here
  */
-char ssid[] = "ssid";     // your network SSID (name)
-char pass[] = "password"; // your network password
+char ssid[] = "HTM1";     // your network SSID (name)
+char pass[] = "kb1henna"; // your network password
 //bool WiFiAP = false;      // Do yo want the ESP as AP?
 #endif
 ////////////////////////////////////////////////////////////////////////
@@ -418,6 +423,14 @@ WiFiEventHandler probeRequestPrintHandler;
 void setup()
 {
 
+#if FEATURE_PROBEREQUEST
+  //probeToirSender();
+  WiFi.persistent(false);
+  probeRequestPrintHandler = WiFi.onSoftAPModeProbeRequestReceived(&onProbeRequest);
+#endif
+
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////  
   #if FEATURE_IR
 
@@ -459,6 +472,8 @@ void setup()
   Serial.print("This Device is connected to: ");
   //Serial.println(WiFi.SSID());
   Serial.println();
+
+
  
 
   #if SERIALDEBUG_EXTRA
@@ -477,11 +492,6 @@ void setup()
     delay(1000);
   }
   #endif
-#if FEATURE_PROBEREQUEST
-  //probeToirSender();
-  WiFi.persistent(false);
-  probeRequestPrintHandler = WiFi.onSoftAPModeProbeRequestReceived(&onProbeRequest);
-#endif
 
   String event = "";
   
@@ -531,7 +541,7 @@ void setup()
     WiFi.persistent(false); // Do not use SDK storage of SSID/WPA parameters
   
   
-  #if !FEATURE_MQTTBROKER
+ 
   #if SERIALDEBUG
       Serial.println("Start Wificonnect");
     #endif
@@ -542,7 +552,7 @@ void setup()
     #if SERIALDEBUG
       Serial.println("End Wificonnect");
     #endif
-    #endif
+   
       
     #if SERIALDEBUG
       Serial.println("Start WebServer");
@@ -627,11 +637,6 @@ void setup()
   #endif
   
   #if FEATURE_MQTTBROKER
- // Start WiFi
-//  if (WiFiAP)
-    startWiFiAP();
- // else
-    startWiFiClient();
 
   // Start the broker
   Serial.println("Starting MQTT broker");
@@ -714,25 +719,16 @@ void loop()
       Serial.println();
   }
   
-  
-   
-  yield();  // Or delay(milliseconds); This ensures the ESP doesn't WDT reset.
+ yield();  // Or delay(milliseconds); This ensures the ESP doesn't WDT reset.
 
- 
- 
- 
  #endif
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 ///////////////////////////////////////////////////////////////////////////
 #if FEATURE_MQTTBROKER
- /*
- * Publish the counter value as String
- */
 
-  
- 
+
  myBroker.publish("SensorData/unit/", (String)unit);
  myBroker.publish("SensorData/temperature/", (String)temperature);
  myBroker.publish("SensorData/humidity/", (String)humidity);
@@ -740,8 +736,9 @@ void loop()
  myBroker.publish("SensorData/voltage/", (String)voltage);
  myBroker.publish("SensorData/light/", (String)light);
   
-  // wait a second
-  delay(1000);
+ // wait a second
+
+delay(10000);
 #endif
 //////////////////////////////////////////////////////////////////////////////
      
@@ -765,8 +762,7 @@ void loop()
     }
   #endif
 
-  delay(0);
-
+  
   #if defined(ESP8266)
     tcpCleanup();
   #endif
@@ -835,32 +831,6 @@ void runEachSecond() {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if FEATURE_MQTTBROKER
-void startWiFiClient()
-{
-  Serial.println("Connecting to "+(String)ssid);
-  WiFi.begin(ssid, pass);
-  
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  
-  Serial.println("WiFi connected");
-  Serial.println("IP address: " + WiFi.localIP().toString());
-}
-
-void startWiFiAP()
-{
-  WiFi.mode(WIFI_AP);
-  WiFi.softAP(ssid, pass);
-  Serial.println("AP started");
-  Serial.println("IP address: " + WiFi.softAPIP().toString());
-}
-#endif
-
-////////////////////////////////////////////////////////////////////////////
 
 
 #if FEATURE_PROBEREQUEST
@@ -889,11 +859,8 @@ void onProbeRequest(const WiFiEventSoftAPModeProbeRequestReceived& dataReceived)
     Serial.print(" Light:  ");
     Serial.println(dataReceived.mac[4],DEC);
     light = dataReceived.mac[4];
-    delay(10);
-    Serial.print("This Device MAC ID is: ");
     
- 
-  } else {
+ } else {
     
     //Serial.println("Waiting for Data............");
     
