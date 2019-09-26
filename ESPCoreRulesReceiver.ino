@@ -725,23 +725,6 @@ void loop()
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-///////////////////////////////////////////////////////////////////////////
-#if FEATURE_MQTTBROKER
-
-
- myBroker.publish("SensorData/unit/", (String)unit);
- myBroker.publish("SensorData/temperature/", (String)temperature);
- myBroker.publish("SensorData/humidity/", (String)humidity);
- myBroker.publish("SensorData/pressure/", (String)pressure);
- myBroker.publish("SensorData/voltage/", (String)voltage);
- myBroker.publish("SensorData/light/", (String)light);
-  
- // wait a second
-
-delay(10000);
-#endif
-//////////////////////////////////////////////////////////////////////////////
-     
 
   if (millis() > timer10ps)
     run10PerSecond();
@@ -859,7 +842,7 @@ void onProbeRequest(const WiFiEventSoftAPModeProbeRequestReceived& dataReceived)
     Serial.print(" Light:  ");
     Serial.println(dataReceived.mac[4],DEC);
     light = dataReceived.mac[4];
-    
+    mqttPublish();
  } else {
     
     //Serial.println("Waiting for Data............");
@@ -868,3 +851,24 @@ void onProbeRequest(const WiFiEventSoftAPModeProbeRequestReceived& dataReceived)
 }
 #endif
 ///////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////
+#if FEATURE_MQTTBROKER
+void mqttPublish()    {
+ myBroker.publish("SensorData/unit/", (String)unit);
+ myBroker.publish("SensorData/temperature/", (String)temperature);
+ myBroker.publish("SensorData/humidity/", (String)humidity);
+ myBroker.publish("SensorData/pressure/", (String)pressure);
+ myBroker.publish("SensorData/voltage/", (String)voltage);
+ myBroker.publish("SensorData/light/", (String)light);
+  
+ // wait a second
+
+//delay(1000);
+}
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
+     
+
