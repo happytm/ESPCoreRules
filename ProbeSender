@@ -1,32 +1,26 @@
 ADC_MODE(ADC_VCC); //vcc read-mode
 #define SLEEP_SECS 15 * 60 // 15 minutes
-int device = 1;
+
 uint8 ssid[32] = "ESP_";   // This name has to be same as main controller's ssid.
 int apChannel = 1;       // This channel has to be same as main controller's channel.
-
-int temperature = 10;
-int humidity = 20;
-int pressure = 90;
-int voltage = 80;
-int light = 70;
+int device = 1;
+int temperature;
+int humidity;
+int pressure;
+int voltage;
+int light;
 
 uint8_t fakeMac[] = {temperature, humidity, pressure, voltage, light, device};
-
+int ledPin = 12;
 int VOLT_LIMIT = 3;
 unsigned long lastMillis;
 unsigned long passedMillis;
-int ledPin = 12;
+
 
 #include <ESP8266WiFi.h>
 
 
 //============Do not need user configuration from here on============================
-
-
-
-
-
-
 
 void setup() {
  // WiFi.disconnect();
@@ -56,11 +50,7 @@ void setup() {
   }
 
   Serial.println("Setup finished");
-
   
- 
-  
- 
   passedMillis = millis() - lastMillis;
   Serial.print("Time spent on setup: ");
   Serial.println(passedMillis);
@@ -74,15 +64,7 @@ void setup() {
 
 void loop() {
 
-
-  //=====================Probe request Loop=========================
-
-  
   probeRequest();
-
-
-  
-
 
   Serial.print("Total time I spent before going to sleep: ");
   Serial.println(millis());
