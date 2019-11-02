@@ -52,7 +52,7 @@ Plugins commands are explained in the plugin sections
 #define FEATURE_MSGBUS                   true
 #define FEATURE_PLUGINS                  true
 #define FEATURE_TIME                     true
-#define FEATURE_MQTT                     true
+#define FEATURE_MQTT                     false
 #if FEATURE_MQTT
 #define FEATURE_MQTTBROKER               false
 #endif
@@ -284,7 +284,7 @@ public:
       os_memcpy(data_str, data, length);
       data_str[length] = '\0';
       
-      Serial.println("received topic '"+topic+"' with data '"+(String)data_str+"'");
+      Serial.println("received topic "+topic+""+(String)data_str+"");
     }
 };
 
@@ -427,6 +427,7 @@ void setup()
   //probeToirSender();
   WiFi.persistent(false);
   probeRequestPrintHandler = WiFi.onSoftAPModeProbeRequestReceived(&onProbeRequest);
+  
 #endif
 
 
@@ -726,6 +727,7 @@ void loop()
 
 
 
+
   if (millis() > timer10ps)
     run10PerSecond();
 
@@ -822,7 +824,6 @@ void onProbeRequest(const WiFiEventSoftAPModeProbeRequestReceived& dataReceived)
   
   if (dataReceived.mac[5] == 0x01) {
     
-
     Serial.print("Probe Request:- ");
     Serial.print(" Device ID:  ");
     Serial.print(dataReceived.mac[5],DEC);
@@ -843,6 +844,7 @@ void onProbeRequest(const WiFiEventSoftAPModeProbeRequestReceived& dataReceived)
     Serial.println(dataReceived.mac[4],DEC);
     light = dataReceived.mac[4];
     mqttPublish();
+   
  } else {
     
     //Serial.println("Waiting for Data............");
@@ -871,4 +873,3 @@ void mqttPublish()    {
 
 //////////////////////////////////////////////////////////////////////////////
      
-
