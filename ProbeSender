@@ -1,0 +1,201 @@
+ADC_MODE(ADC_VCC); //vcc read-mode
+#define SLEEP_SECS 15 * 60 // 15 minutes
+int device = 1;
+uint8 ssid[32] = "ESP_";   // This name has to be same as main controller's ssid.
+int apChannel = 1;       // This channel has to be same as main controller's channel.
+
+int temperature = 10;
+int humidity = 20;
+int pressure = 90;
+int voltage = 80;
+int light = 70;
+
+uint8_t fakeMac[] = {temperature, humidity, pressure, voltage, light, device};
+
+int VOLT_LIMIT = 3;
+unsigned long lastMillis;
+unsigned long passedMillis;
+int ledPin = 12;
+
+#include <ESP8266WiFi.h>
+
+
+//============Do not need user configuration from here on============================
+
+
+
+
+
+
+
+void setup() {
+ // WiFi.disconnect();
+  
+  sensorValues();
+  Serial.begin(115200);
+  Serial.println();
+  Serial.print("Milliseconds passed before setup: ");
+  Serial.println(millis());
+  lastMillis = millis();
+  Serial.println();
+  delay(1);
+  
+  
+  WiFi.hostname("Livingroom");
+  Serial.println();
+
+  probeRequest();
+ 
+  
+  float voltage = ESP.getVcc() / (float)1023; // * (float)1.07;
+  Serial.print("Voltage: "); Serial.print(voltage); Serial.print("  Voltage Expected: "); Serial.println(VOLT_LIMIT);
+  if (voltage < VOLT_LIMIT)      // if voltage of battery gets to low, the LED wil blink fast.
+  {
+    Serial.println("Warning :- Battery Voltage low please change batteries" );
+    Serial.println();
+  }
+
+  Serial.println("Setup finished");
+
+  
+ 
+  
+ 
+  passedMillis = millis() - lastMillis;
+  Serial.print("Time spent on setup: ");
+  Serial.println(passedMillis);
+  Serial.println();
+  lastMillis = millis();
+  Serial.println();
+
+}   // Setup ends here
+
+//========================Main Loop================================
+
+void loop() {
+
+
+  //=====================Probe request Loop=========================
+
+  
+  probeRequest();
+
+
+  
+
+
+  Serial.print("Total time I spent before going to sleep: ");
+  Serial.println(millis());
+  Serial.print("I will wakeup in: ");
+  Serial.print(SLEEP_SECS / 60);
+  Serial.println(" Minutes");
+  delay(5000);
+  ESP.restart();
+  //ESP.deepSleep(0);
+
+}
+
+//=========================Main Loop ends==========================
+
+
+void sensorValues()     {
+
+  temperature = random(90);
+  humidity = random(100);
+  pressure = random(120);
+  voltage = random(100);
+  light = random(100);
+  fakeMac[0] = temperature;
+  fakeMac[1] = humidity;
+  fakeMac[2] = pressure;
+  fakeMac[3] = voltage;
+  fakeMac[4] = light;
+  wifi_set_macaddr(STATION_IF, fakeMac);
+  
+}
+
+
+void gotoSleep() {                            //need connection between GPIO16 and reset pin on ESP8266
+  // add some randomness to avoid collisions with multiple devices
+  int sleepSecs = SLEEP_SECS;// + ((uint8_t)RANDOM_REG32/2);
+  Serial.printf("Up for %i ms, going to sleep for %i secs...\n", millis(), sleepSecs);
+  ESP.deepSleep(sleepSecs * 1000000, RF_NO_CAL);
+  ////ESP.deepSleep( SLEEPTIME, WAKE_RF_DISABLED );
+}
+
+
+//=========================Probe request function starts===========
+
+
+void probeRequest()  {
+  Serial.println("Starting Probe sender");
+  Serial.println("Sending sensor data over Probe request protocol to Master Node");
+  Serial.println();
+ 
+  //int8_t scanNetworks(bool async = true, bool show_hidden = false, uint8 channel = 0, uint8* ssid = NULL);
+  int n = WiFi.scanNetworks(true, false, apChannel, (uint8*) ssid);
+  delay(25); // Minimum delay of 25 required to scan networks in async mode if not using IRSENDER
+
+
+  if (WiFi.BSSIDstr(0)[16] == '1')  {     //use device number here
+    String ssid;
+    Serial.println();
+    Serial.print("This Device MAC ID is: ");
+    Serial.println(WiFi.macAddress());
+    Serial.print("This Device Name is: ");
+    Serial.println(WiFi.hostname());
+    Serial.print("Message sent to Controller is: ");
+    Serial.println(WiFi.macAddress());
+    Serial.print("Message received from Controller is: ");
+    Serial.println(&WiFi.BSSIDstr(0)[0]);
+  /*  Serial.print(WiFi.BSSIDstr(0)[0]);
+    Serial.print(WiFi.BSSIDstr(0)[1]);
+    Serial.println(WiFi.BSSIDstr(0)[2]);
+    Serial.print(WiFi.BSSIDstr(0)[3]);
+    Serial.print(WiFi.BSSIDstr(0)[4]);
+    Serial.println(WiFi.BSSIDstr(0)[5]);
+    Serial.print(WiFi.BSSIDstr(0)[6]);
+    Serial.print(WiFi.BSSIDstr(0)[7]);
+    Serial.println(WiFi.BSSIDstr(0)[8]);
+    Serial.print(WiFi.BSSIDstr(0)[9]);
+    Serial.print(WiFi.BSSIDstr(0)[10]);
+    Serial.println(WiFi.BSSIDstr(0)[11]);
+    Serial.print(WiFi.BSSIDstr(0)[12]);
+    Serial.print(WiFi.BSSIDstr(0)[13]);
+    Serial.println(WiFi.BSSIDstr(0)[14]);
+    Serial.print(WiFi.BSSIDstr(0)[15]);
+    Serial.print(WiFi.BSSIDstr(0)[16]);
+    */
+    Serial.println();
+
+    Serial.print("Gateway Name is: ");
+    Serial.println(WiFi.SSID(0));
+    Serial.print("Gateway Channel is: ");
+    Serial.println(WiFi.channel(0));
+
+    Serial.print("Message received from Controller: ");
+    if (WiFi.BSSIDstr(0)[0] == '3')  {
+      Serial.print("GPIO,");
+      Serial.print(ledPin);
+      Serial.print(",");
+      Serial.print(WiFi.BSSIDstr(0)[15]);
+    }
+
+    if (WiFi.BSSIDstr(0)[1] == '1')  {
+      Serial.print("I will wake up next time with WiFi & OTA and deepsleep disabled");
+      // Define some features here to activate wifi & set 5 seconds deep sleep time & disable deepsleep when unit wakes up next time.
+    }
+  }
+
+  Serial.println();
+  WiFi.scanDelete();
+  passedMillis = millis() - lastMillis;
+  Serial.print("Time spent on Probe Request: ");
+  Serial.println(passedMillis);
+  lastMillis = millis();
+  Serial.println();
+
+  delay(10);    // minimum delay of 10 required here.
+
+}
+
