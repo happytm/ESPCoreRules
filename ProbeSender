@@ -1,8 +1,8 @@
 ADC_MODE(ADC_VCC); //vcc read-mode
 #define SLEEP_SECS 15 * 60 // 15 minutes
 
-uint8 ssid[32] = "ESP_";   // This name has to be same as main controller's ssid.
-int apChannel = 1;       // This channel has to be same as main controller's channel.
+uint8 gateway[32] = "ESP";   // This name has to be same as main controller's ssid.
+int apChannel = 7;       // This channel has to be same as main controller's channel.
 int device = 1;
 int temperature;
 int humidity;
@@ -11,6 +11,15 @@ int voltage;
 int light;
 
 uint8_t fakeMac[] = {temperature, humidity, pressure, voltage, light, device};
+/*
+int value1;
+int value2;
+int value3;
+int value4;
+int value5;
+
+uint8_t fakeMac2[] = {value1, value2, value3, value4, value5, device};
+*/
 int ledPin = 12;
 int VOLT_LIMIT = 3;
 unsigned long lastMillis;
@@ -25,7 +34,8 @@ unsigned long passedMillis;
 void setup() {
  // WiFi.disconnect();
   
-  sensorValues();
+  sensorValues1();
+  
   Serial.begin(115200);
   Serial.println();
   Serial.print("Milliseconds passed before setup: ");
@@ -39,6 +49,7 @@ void setup() {
   Serial.println();
 
   probeRequest();
+  
  
   
   float voltage = ESP.getVcc() / (float)1023; // * (float)1.07;
@@ -64,8 +75,10 @@ void setup() {
 
 void loop() {
 
+  //sensorValues2();
+  //delay(25);
   probeRequest();
-
+  
   Serial.print("Total time I spent before going to sleep: ");
   Serial.println(millis());
   Serial.print("I will wakeup in: ");
@@ -80,7 +93,7 @@ void loop() {
 //=========================Main Loop ends==========================
 
 
-void sensorValues()     {
+void sensorValues1()     {
 
   temperature = random(90);
   humidity = random(100);
@@ -92,10 +105,28 @@ void sensorValues()     {
   fakeMac[2] = pressure;
   fakeMac[3] = voltage;
   fakeMac[4] = light;
+ 
   wifi_set_macaddr(STATION_IF, fakeMac);
   
 }
 
+/*
+void sensorValues2()     {
+
+  value1 = random(10);
+  value2 = random(10);
+  value3 = random(10);
+  value4 = random(10);
+  value5 = random(10);
+  fakeMac2[0] = value1;
+  fakeMac2[1] = value2;
+  fakeMac2[2] = value3;
+  fakeMac2[3] = value4;
+  fakeMac2[4] = value5;
+  wifi_set_macaddr(STATION_IF, fakeMac2);
+  
+}
+*/
 
 void gotoSleep() {                            //need connection between GPIO16 and reset pin on ESP8266
   // add some randomness to avoid collisions with multiple devices
@@ -115,7 +146,7 @@ void probeRequest()  {
   Serial.println();
  
   //int8_t scanNetworks(bool async = true, bool show_hidden = false, uint8 channel = 0, uint8* ssid = NULL);
-  int n = WiFi.scanNetworks(true, false, apChannel, (uint8*) ssid);
+  int n = WiFi.scanNetworks(true, false, apChannel, (uint8*) gateway);
   delay(25); // Minimum delay of 25 required to scan networks in async mode if not using IRSENDER
 
 
@@ -167,7 +198,7 @@ void probeRequest()  {
       Serial.print("I will wake up next time with WiFi & OTA and deepsleep disabled");
       // Define some features here to activate wifi & set 5 seconds deep sleep time & disable deepsleep when unit wakes up next time.
     }
-  }
+ }
 
   Serial.println();
   WiFi.scanDelete();
@@ -180,4 +211,3 @@ void probeRequest()  {
   delay(10);    // minimum delay of 10 required here.
 
 }
-
