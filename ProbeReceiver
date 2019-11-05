@@ -7,8 +7,8 @@
 /*
  * Your WiFi config here
  */
-char ssid[] = "HTM1";     // your network SSID (name)
-char pass[] = "kb1henna"; // your network password
+char ssid[] = "";     // your network SSID (name)
+char pass[] = ""; // your network password
 char gateway[] = "ESP"; // your gateway name
 //bool WiFiAP = false;      // Do yo want the ESP as AP?
 #endif
@@ -210,4 +210,4 @@ void mqttPublish()    {
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
-     
+
