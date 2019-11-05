@@ -2,7 +2,7 @@ ADC_MODE(ADC_VCC); //vcc read-mode
 #define SLEEP_SECS 15 * 60 // 15 minutes
 
 uint8 gateway[32] = "ESP";   // This name has to be same as main controller's ssid.
-int apChannel = 7;       // This channel has to be same as main controller's channel.
+int apChannel = 7;          // This channel has to be same as main controller's channel.
 int device = 1;
 int temperature;
 int humidity;
@@ -33,11 +33,30 @@ unsigned long passedMillis;
 
 void setup() {
  // WiFi.disconnect();
-  
-  sensorValues1();
-  
+  WiFi.scanDelete();
   Serial.begin(115200);
   Serial.println();
+  Serial.print("Device ID: ");
+  Serial.println(WiFi.macAddress()[16]);
+  sensorValues1();
+  if ((WiFi.macAddress()[16]) == '1')  {     //match device number here
+  
+  probeRequest();
+  
+ 
+  Serial.print("Milliseconds passed before setup: ");
+  Serial.println(millis());
+  lastMillis = millis();
+  Serial.println();
+  delay(1);
+  WiFi.hostname("Livingroom");
+  Serial.println();
+  } else {
+    
+    Serial.println("Let me try again to get sensor data........................................");
+    ESP.restart();
+  }
+ 
   Serial.print("Milliseconds passed before setup: ");
   Serial.println(millis());
   lastMillis = millis();
@@ -47,10 +66,9 @@ void setup() {
   
   WiFi.hostname("Livingroom");
   Serial.println();
-
-  probeRequest();
   
- 
+  
+  
   
   float voltage = ESP.getVcc() / (float)1023; // * (float)1.07;
   Serial.print("Voltage: "); Serial.print(voltage); Serial.print("  Voltage Expected: "); Serial.println(VOLT_LIMIT);
@@ -75,19 +93,30 @@ void setup() {
 
 void loop() {
 
-  //sensorValues2();
+ 
+   //sensorValues2();
   //delay(25);
+  sensorValues1();
   probeRequest();
-  
+  yield();
+  if ((WiFi.macAddress()[16]) == '1')  {     //match device number here
+   
   Serial.print("Total time I spent before going to sleep: ");
   Serial.println(millis());
   Serial.print("I will wakeup in: ");
   Serial.print(SLEEP_SECS / 60);
   Serial.println(" Minutes");
-  delay(5000);
-  ESP.restart();
-  //ESP.deepSleep(0);
-
+  
+   delay(500);         //disable delay when deep sleep activated.
+   Serial.println("Going to Deep Sleep..........................");
+   ESP.restart();
+   //ESP.deepSleep(0); //If last digit of MAC ID matches to device ID go to deep sleep else loop through again.
+  } else {
+    
+    Serial.println("Let me try again to get sensor data........................................");
+    
+  }
+  
 }
 
 //=========================Main Loop ends==========================
@@ -128,7 +157,7 @@ void sensorValues2()     {
 }
 */
 
-void gotoSleep() {                            //need connection between GPIO16 and reset pin on ESP8266
+void gotoSleep() {      //need connection between GPIO16 and reset pin of ESP8266
   // add some randomness to avoid collisions with multiple devices
   int sleepSecs = SLEEP_SECS;// + ((uint8_t)RANDOM_REG32/2);
   Serial.printf("Up for %i ms, going to sleep for %i secs...\n", millis(), sleepSecs);
@@ -149,8 +178,10 @@ void probeRequest()  {
   int n = WiFi.scanNetworks(true, false, apChannel, (uint8*) gateway);
   delay(25); // Minimum delay of 25 required to scan networks in async mode if not using IRSENDER
 
+   
+   //if (WiFi.macAddress()[16] == '1')  {     //match device number here
 
-  if (WiFi.BSSIDstr(0)[16] == '1')  {     //use device number here
+   if (WiFi.BSSIDstr(0)[16] == '1')  {     //match device number here
     String ssid;
     Serial.println();
     Serial.print("This Device MAC ID is: ");
@@ -179,6 +210,9 @@ void probeRequest()  {
     Serial.print(WiFi.BSSIDstr(0)[15]);
     Serial.print(WiFi.BSSIDstr(0)[16]);
     */
+
+    Serial.print("Last digit of MAC ID: ");
+    Serial.print(WiFi.macAddress()[16]);
     Serial.println();
 
     Serial.print("Gateway Name is: ");
@@ -191,14 +225,19 @@ void probeRequest()  {
       Serial.print("GPIO,");
       Serial.print(ledPin);
       Serial.print(",");
-      Serial.print(WiFi.BSSIDstr(0)[15]);
+      Serial.println(WiFi.BSSIDstr(0)[15]);
     }
 
-    if (WiFi.BSSIDstr(0)[1] == '1')  {
-      Serial.print("I will wake up next time with WiFi & OTA and deepsleep disabled");
-      // Define some features here to activate wifi & set 5 seconds deep sleep time & disable deepsleep when unit wakes up next time.
+    if (WiFi.BSSIDstr(0)[16] == '1')  {
+      Serial.print("I will wake up next time with WiFi, OTA enabled and deepsleep disabled");
+      // Define some features here to activate wifi  & disable deepsleep when unit wakes up next time then restart the ESP.
+      // ESP.restart();
     }
+
+  
  }
+   
+ 
 
   Serial.println();
   WiFi.scanDelete();
