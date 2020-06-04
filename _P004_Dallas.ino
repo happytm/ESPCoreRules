@@ -7,6 +7,8 @@
  * Dallas <variable>,<pin>                   Read temperature value into variable
 */
 
+#ifdef USES_P004
+#define P004_BUILD            6
 #define PLUGIN_004
 #define PLUGIN_ID_004         4
 
@@ -20,7 +22,8 @@ boolean Plugin_004(byte function, String& cmd, String& params)
   {
     case PLUGIN_INFO:
       {
-        printWebTools += F("<TR><TD><TD>P004 - Dallas");
+        printWebTools += F("<TR><TD>P004 - Dallas<TD>");
+        printWebTools += P004_BUILD;
         break;
       }
       
@@ -148,3 +151,5 @@ boolean dallas(String varName, byte Pin)
   }
   return success;
 }
+#endif
+

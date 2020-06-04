@@ -1,3 +1,6 @@
+//********************************************************************************************
+// Time (clock)
+//********************************************************************************************
 #if FEATURE_TIME
 
 #define SECS_PER_MIN  (60UL)
@@ -26,6 +29,23 @@ uint32_t nextSyncTime = 0;
 
 byte PrevMinutes = 0;
 
+//********************************************************************************************
+// get time directly from NTP request
+//********************************************************************************************
+unsigned long updateNtp(){
+  unsigned long  t = getNtpTime();
+  if (t != 0) {
+    if (Settings.DST)
+      t += SECS_PER_HOUR; // add one hour if DST active
+    setTime(t);
+    breakTime(sysTime, tm);
+  }
+  return t;
+}
+
+//********************************************************************************************
+// get time as string like hh:mm
+//********************************************************************************************
 String getTimeString(char delimiter)
 {
   String reply;
@@ -40,6 +60,10 @@ String getTimeString(char delimiter)
   return reply;
 }
 
+
+//********************************************************************************************
+// Convert epoch to time struct
+//********************************************************************************************
 void breakTime(unsigned long timeInput, struct timeStruct &tm) {
   uint8_t year;
   uint8_t month, monthLength;
@@ -90,12 +114,20 @@ void breakTime(unsigned long timeInput, struct timeStruct &tm) {
   tm.Day = time + 1;     // day of month
 }
 
+
+//********************************************************************************************
+// set time
+//********************************************************************************************
 void setTime(unsigned long t) {
   sysTime = (uint32_t)t;
   nextSyncTime = (uint32_t)t + syncInterval;
   prevMillis = millis();  // restart counting from now (thanks to Korman for this fix)
 }
 
+
+//********************************************************************************************
+// now
+//********************************************************************************************
 unsigned long now() {
   // calculate number of seconds passed since last call to now()
   while (millis() - prevMillis >= 1000) {
@@ -117,32 +149,56 @@ unsigned long now() {
   return (unsigned long)sysTime;
 }
 
+
+//********************************************************************************************
+// return hour as int
+//********************************************************************************************
 int hour()
 {
   return tm.Hour;
 }
 
+
+//********************************************************************************************
+// return minute as int
+//********************************************************************************************
 int minute()
 {
   return tm.Minute;
 }
 
+
+//********************************************************************************************
+// return seconds as int
+//********************************************************************************************
 byte second()
 {
   return tm.Second;
 }
 
+
+//********************************************************************************************
+// return weekday as int
+//********************************************************************************************
 int weekday()
 {
   return tm.Wday;
 }
 
+
+//********************************************************************************************
+// start time handling
+//********************************************************************************************
 void initTime()
 {
   nextSyncTime = 0;
   now();
 }
 
+
+//********************************************************************************************
+// periodic time update, create clock events
+//********************************************************************************************
 void checkTime()
 {
   now();
@@ -169,9 +225,10 @@ void checkTime()
   }
 }
 
-/********************************************************************************************\
-   Convert a string like "Sun,12:30" into a 32 bit integer
- \*********************************************************************************************/
+
+//********************************************************************************************
+// Convert a string like "Sun,12:30" into a 32 bit integer
+//********************************************************************************************
 unsigned long string2TimeLong(const String &str)
 {
   // format 0000WWWWAAAABBBBCCCCDDDD
@@ -229,12 +286,20 @@ unsigned long string2TimeLong(const String &str)
 }
 
 
+//********************************************************************************************
+// Try to get time from an NTP server
+//********************************************************************************************
 unsigned long getNtpTime()
 {
   WiFiUDP udp;
   udp.begin(123);
   for (byte x = 1; x < 4; x++)
   {
+    #if SERIALDEBUG
+      Serial.print("Get NTP Time try:");
+      Serial.println(x);
+    #endif
+
     const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
     byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
 
@@ -261,13 +326,17 @@ unsigned long getNtpTime()
     while (millis() - beginWait < 2000) {
       int size = udp.parsePacket();
       if (size >= NTP_PACKET_SIZE) {
-         udp.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
+        udp.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
         unsigned long secsSince1900;
         // convert four bytes starting at location 40 to a long integer
         secsSince1900 =  (unsigned long)packetBuffer[40] << 24;
         secsSince1900 |= (unsigned long)packetBuffer[41] << 16;
         secsSince1900 |= (unsigned long)packetBuffer[42] << 8;
         secsSince1900 |= (unsigned long)packetBuffer[43];
+        #if SERIALDEBUG
+          Serial.print("Got NTP Time:");
+          Serial.println(secsSince1900);
+        #endif
         return secsSince1900 - 2208988800UL + Settings.TimeZone * SECS_PER_MIN;
       }
     }
@@ -275,3 +344,4 @@ unsigned long getNtpTime()
   return 0;
 }
 #endif
+

@@ -50,7 +50,6 @@ void addHeader(boolean showMenu, String & reply) {
 //********************************************************************************
 // Web Interface root page
 //********************************************************************************
-byte sortedIndex[UNIT_MAX + 1];
 void handle_root() {
 
   String sCommand = WebServer.arg(F("cmd"));
@@ -76,68 +75,69 @@ void handle_root() {
     
     reply += F("<form><table>");
 
-    // first get the list in alphabetic order
-    for (byte x = 0; x < UNIT_MAX; x++)
-      sortedIndex[x] = x;
+    if(Settings.NodeListMax){
+      // first get the list in alphabetic order
+      for (byte x = 0; x < Settings.NodeListMax; x++)
+        sortedIndex[x] = x;
 
-    if (groupList == true) {
-      // Show Group list
-      sortDeviceArrayGroup(); // sort on groupname
-      String prevGroup = "?";
-      for (byte x = 0; x < UNIT_MAX; x++)
-      {
-        byte index = sortedIndex[x];
-        if (Nodes[index].IP[0] != 0) {
-          String group = Nodes[index].group;
-          if (group != prevGroup)
+      if (groupList == true) {
+        // Show Group list
+        sortDeviceArrayGroup(); // sort on groupname
+        String prevGroup = "?";
+        for (byte x = 0; x < Settings.NodeListMax; x++)
+        {
+          byte index = sortedIndex[x];
+          if (Nodes[index].IP[0] != 0) {
+            String group = *Nodes[index].group;
+            if (group != prevGroup)
+            {
+              prevGroup = group;
+              reply += F("<TR><TD><a class=\"");
+              reply += F("button-nodelink");
+              reply += F("\" ");
+              reply += F("href='/?group=");
+              reply += group;
+              reply += "'>";
+              reply += group;
+              reply += F("</a>");
+              reply += F("<TD>");
+            }
+          }
+        }
+        // All nodes group button
+        reply += F("<TR><TD><a class=\"button-nodelink\" href='/?group=*'>_ALL_</a><TD>");
+      }
+      else {
+        // Show Node list
+        sortDeviceArray();  // sort on nodename
+        for (byte x = 0; x < Settings.NodeListMax; x++)
+        {
+          byte index = sortedIndex[x];
+          if (Nodes[index].IP[0] != 0 && (group == "*" || *Nodes[index].group == group))
           {
-            prevGroup = group;
+            String buttonclass = "";
+            if ((String)Settings.Name == *Nodes[index].nodeName)
+              buttonclass = F("button-nodelinkA");
+            else
+              buttonclass = F("button-nodelink");
             reply += F("<TR><TD><a class=\"");
-            reply += F("button-nodelink");
+            reply += buttonclass;
             reply += F("\" ");
-            reply += F("href='/?group=");
-            reply += group;
+            char url[40];
+            sprintf_P(url, PSTR("href='http://%u.%u.%u.%u"), Nodes[index].IP[0], Nodes[index].IP[1], Nodes[index].IP[2], Nodes[index].IP[3]);
+            reply += url;
+            if (group != "") {
+              reply += F("?group=");
+              reply += *Nodes[index].group;
+            }
             reply += "'>";
-            reply += group;
+            reply += *Nodes[index].nodeName;
             reply += F("</a>");
             reply += F("<TD>");
           }
         }
       }
-      // All nodes group button
-      reply += F("<TR><TD><a class=\"button-nodelink\" href='/?group=*'>_ALL_</a><TD>");
     }
-    else {
-      // Show Node list
-      sortDeviceArray();  // sort on nodename
-      for (byte x = 0; x < UNIT_MAX; x++)
-      {
-        byte index = sortedIndex[x];
-        if (Nodes[index].IP[0] != 0 && (group == "*" || Nodes[index].group == group))
-        {
-          String buttonclass = "";
-          if ((String)Settings.Name == Nodes[index].nodeName)
-            buttonclass = F("button-nodelinkA");
-          else
-            buttonclass = F("button-nodelink");
-          reply += F("<TR><TD><a class=\"");
-          reply += buttonclass;
-          reply += F("\" ");
-          char url[40];
-          sprintf_P(url, PSTR("href='http://%u.%u.%u.%u"), Nodes[index].IP[0], Nodes[index].IP[1], Nodes[index].IP[2], Nodes[index].IP[3]);
-          reply += url;
-          if (group != "") {
-            reply += F("?group=");
-            reply += Nodes[index].group;
-          }
-          reply += "'>";
-          reply += Nodes[index].nodeName;
-          reply += F("</a>");
-          reply += F("<TD>");
-        }
-      }
-    }
-
     reply += "</table></form>";
     WebServer.send(200, "text/html", reply);
   }
@@ -151,6 +151,7 @@ void handle_root() {
       cmd_within_mainloop = CMD_REBOOT;
     }
     WebServer.send(200, "text/html", "OK");
+    delay(100);
   }
 }
 
@@ -183,7 +184,10 @@ void handle_tools() {
   reply += F("<TR><TR><TD>RSSI:<TD>");
   reply += WiFi.RSSI();
   reply += F(" dB");
-      
+
+  reply += F("<TR><TD>Board:<TD>");
+  reply += ARDUINO_BOARD;
+
   #if defined(ESP8266)
     reply += F("<TR><TD>FlashSize:<TD>");
     reply += ESP.getFlashChipRealSize() / 1024;
@@ -194,6 +198,35 @@ void handle_tools() {
     reply += F(" kB)");
   #endif
 
+  #if defined(ESP8266)
+    uint32_t _start = ((uint32_t)&_SPIFFS_start - 0x40200000)/1024;
+    uint32_t _end = ((uint32_t)&_SPIFFS_end - 0x40200000)/1024;
+    reply += F("<TR><TD>SPIFFS:<TD>");
+    reply += _start;
+    reply += " / ";
+    reply += _end;
+    reply += " (";
+    reply += _end - _start;
+    reply += ") kB";
+  #endif
+  #if defined(ESP32)
+    reply += F("<TR><TD>Data partition:<TD>");
+    esp_partition_type_t partitionType = static_cast<esp_partition_type_t>(ESP_PARTITION_TYPE_DATA);
+    esp_partition_iterator_t _mypartiterator = esp_partition_find(partitionType, ESP_PARTITION_SUBTYPE_ANY, NULL);
+    if (_mypartiterator) {
+      do {
+        const esp_partition_t *_mypart = esp_partition_get(_mypartiterator);
+        reply += _mypart->label;
+        reply += " : ";
+        reply += _mypart->address/1024;
+        reply += " (";
+        reply += _mypart->size/1024;
+        reply += ") kB<BR>";
+      } while ((_mypartiterator = esp_partition_next(_mypartiterator)) != NULL);
+    }
+    esp_partition_iterator_release(_mypartiterator);
+  #endif
+   
   reply += F("<TR><TD>Core:<TD>");
   String core = getSystemLibraryString();
   core.replace(",","<BR>");
@@ -201,6 +234,9 @@ void handle_tools() {
 
   reply += F("<TR><TD>Free RAM:<TD>");
   reply += ESP.getFreeHeap();
+
+  reply += F("<TR><TD>MAC:<TD>");
+  reply += WiFi.macAddress();
 
   #if FEATURE_TIME
     reply += F("<TR><TD>System Time:<TD>");
@@ -212,6 +248,7 @@ void handle_tools() {
 
   reply += F("<TR><TD>Build:<TD>");
   reply += BUILD;
+  reply += F(BUILD_NOTES);
 
   reply += F("<TR><TD>LoopCount:<TD>");
   reply += loopCounterLast/60;
@@ -220,17 +257,21 @@ void handle_tools() {
   #if FEATURE_RULES
     reply += F("<TR><TD><TD>Rules");
   #endif
-  #if FEATURE_MSGBUS
-    reply += F("<TR><TD><TD>MSGBus");
-  #endif
   #if FEATURE_TIME
     reply += F("<TR><TD><TD>Time");
   #endif
-  #if FEATURE_MQTT
-    reply += F("<TR><TD><TD>MQTT");
+  #if FEATURE_I2C
+    reply += F("<TR><TD><TD>I2C");
   #endif
+  #if FEATURE_ESPNOW
+    reply += F("<TR><TD><TD>ESPNOW");
+  #endif
+
+  // Start a new table for the plugin list
+  reply += F("</table><table>");
+
   #if FEATURE_PLUGINS
-    reply += F("<TR><TD>Plugins:");
+    reply += F("<TR><TD>Plugins<TD>Build<TD>Enabled");
     printWebTools = "";
     PluginCall(PLUGIN_INFO, dummyString,  dummyString);
     reply += printWebTools;
@@ -284,7 +325,10 @@ bool loadFromFS(boolean spiffs, String path) {
   else if (path.endsWith(".dat")) dataType = F("application/octet-stream");
   else if (path.endsWith(".esp")) return handle_custom(path);
 
-  path = path.substring(1);
+  #if defined(ESP8266)
+    path = path.substring(1);
+  #endif
+  
   if (spiffs)
   {
     fs::File dataFile = SPIFFS.open(path.c_str(), "r");
@@ -396,13 +440,13 @@ void sortDeviceArray()
 {
   int innerLoop ;
   int mainLoop ;
-  for ( mainLoop = 1; mainLoop < UNIT_MAX; mainLoop++)
+  for ( mainLoop = 1; mainLoop < Settings.NodeListMax; mainLoop++)
   {
     innerLoop = mainLoop;
     while (innerLoop  >= 1)
     {
-      String one = Nodes[sortedIndex[innerLoop]].nodeName;
-      String two = Nodes[sortedIndex[innerLoop - 1]].nodeName;
+      String one = *Nodes[sortedIndex[innerLoop]].nodeName;
+      String two = *Nodes[sortedIndex[innerLoop - 1]].nodeName;
       if (arrayLessThan(one, two))
       {
         switchArray(innerLoop);
@@ -420,14 +464,14 @@ void sortDeviceArrayGroup()
 {
   int innerLoop ;
   int mainLoop ;
-  for ( mainLoop = 1; mainLoop < UNIT_MAX; mainLoop++)
+  for ( mainLoop = 1; mainLoop < Settings.NodeListMax; mainLoop++)
   {
     innerLoop = mainLoop;
     while (innerLoop  >= 1)
     {
-      String one = Nodes[sortedIndex[innerLoop]].group;
+      String one = *Nodes[sortedIndex[innerLoop]].group;
       if(one.length()==0) one = "_";
-      String two = Nodes[sortedIndex[innerLoop - 1]].group;
+      String two = *Nodes[sortedIndex[innerLoop - 1]].group;
       if(two.length()==0) two = "_";
       if (arrayLessThan(one, two))
       {
@@ -536,15 +580,8 @@ void handle_upload_post() {
 
   String reply = "";
   if (uploadResult == 1)
-  {
-    reply += F("Upload OK!<BR>You may need to reboot to apply all settings...");
-    LoadSettings();
-  }
-
+    reply += F("Upload OK");
   if (uploadResult == 2)
-    reply += F("<font color=\"red\">Upload file invalid!</font>");
-
-  if (uploadResult == 3)
     reply += F("<font color=\"red\">No filename!</font>");
 
   addHeader(true, reply);
@@ -564,7 +601,7 @@ void handleFileUpload() {
 
   if (upload.filename.c_str()[0] == 0)
   {
-    uploadResult = 3;
+    uploadResult = 2;
     return;
   }
 
@@ -578,31 +615,12 @@ void handleFileUpload() {
     // first data block, if this is the config file, check PID/Version
     if (upload.totalSize == 0)
     {
-      if (strcasecmp(upload.filename.c_str(), "config.txt") == 0)
-      {
-        struct TempStruct {
-          unsigned long PID;
-          int Version;
-        } Temp;
-        for (int x = 0; x < sizeof(struct TempStruct); x++)
-        {
-          byte b = upload.buf[x];
-          memcpy((byte*)&Temp + x, &b, 1);
-        }
-        if (Temp.Version == VERSION && Temp.PID == ESP_PROJECT_PID)
-          valid = true;
-      }
-      else
-      {
-        // other files are always valid...
-        valid = true;
-      }
-      if (valid)
-      {
-        // once we're safe, remove file and create empty one...
-        SPIFFS.remove((char *)upload.filename.c_str());
-        uploadFile = SPIFFS.open(upload.filename.c_str(), "w");
-      }
+      String filename = upload.filename;
+      #if defined(ESP32)
+        filename = "/" + filename;
+      #endif
+      SPIFFS.remove((char *)filename.c_str());
+      uploadFile = SPIFFS.open(filename.c_str(), "w");
     }
     if (uploadFile) uploadFile.write(upload.buf, upload.currentSize);
   }
@@ -611,10 +629,7 @@ void handleFileUpload() {
     if (uploadFile) uploadFile.close();
   }
 
-  if (valid)
-    uploadResult = 1;
-  else
-    uploadResult = 2;
+  uploadResult = 1;
 }
 
 
@@ -639,7 +654,7 @@ void handle_edit() {
       {
         f.print(content);
         f.close();
-        telnetLog(F("DBG: Flash Save"));
+        logger->println(F("DBG: Flash Save"));
       }
     }
   }
@@ -658,7 +673,7 @@ void handle_edit() {
       while (f.available())
       {
         String c((char)f.read());
-//        htmlEscape(c);
+        htmlEscape(c);
         reply += c;
       }
       reply += F("</textarea>");
@@ -687,3 +702,4 @@ void htmlEscape(String & html)
   html.replace(">",  F("&gt;"));
   html.replace("/", F("&#047;"));
 }
+

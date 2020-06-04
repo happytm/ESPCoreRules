@@ -1,3 +1,7 @@
+//*********************************************************************************************
+// Execute commands
+//*********************************************************************************************
+
 #define INPUT_COMMAND_SIZE          80
 void ExecuteCommand(const char *Line)
 {
@@ -11,7 +15,8 @@ void ExecuteCommand(const char *Line)
       cmd = cmd.substring(0, parampos - 1);
     }
     if (PluginCall(PLUGIN_WRITE, cmd, params)) {
-      telnetLog("OK");
+      if(Settings.LogEvents)
+        logger->println("OK");
       return;
     }
   #endif
@@ -24,65 +29,17 @@ void ExecuteCommand(const char *Line)
   int Par1 = 0;
   int Par2 = 0;
   int Par3 = 0;
+  int Par4 = 0;
 
   GetArgv(Line, Command, 1);
   if (GetArgv(Line, TmpStr1, 2)) Par1 = str2int(TmpStr1);
   if (GetArgv(Line, TmpStr1, 3)) Par2 = str2int(TmpStr1);
   if (GetArgv(Line, TmpStr1, 4)) Par3 = str2int(TmpStr1);
-
-  // Debug commands:
-  if (strcasecmp_P(Command, PSTR("WifiOff")) == 0)
-  {
-    success = true;
-    WiFi.mode( WIFI_OFF );
-    #if defined(ESP8266)
-      WiFi.forceSleepBegin();
-    #endif
-    delay(1);
-  }
-  if (strcasecmp_P(Command, PSTR("WifiClear")) == 0)
-  {
-    success = true;
-    #if defined(ESP8266)
-      ESP.eraseConfig();
-      ESP.reset();
-    #endif
-  }
-  if (strcasecmp_P(Command, PSTR("WifiConnect")) == 0)
-  {
-    success = true;
-    String strLine = Line;
-    String ssid = parseString(strLine, 2);
-    String key = parseString(strLine, 3);
-    WiFi.persistent(true);
-    WiFi.begin(ssid.c_str(),key.c_str());
-  }
-  if (strcasecmp_P(Command, PSTR("WifiDisConnect")) == 0)
-  {
-    success = true;
-    WiFi.disconnect();
-  }
-  if (strcasecmp_P(Command, PSTR("WifiStatus")) == 0)
-  {
-    success = true;
-    Serial.println(WiFi.status());
-  }
-  if (strcasecmp_P(Command, PSTR("WifiAPMode")) == 0)
-  {
-    success = true;
-    WifiAPMode(true);
-    Settings.ForceAPMode = (Par1 == 1);
-  }
-  
-  #if SERIALDEBUG
-    if (strcasecmp_P(Command, PSTR("debugLevel")) == 0)
-    {
-      success = true;
-      debugLevel = Par1;
-    }
-  #endif
-  
+  if (GetArgv(Line, TmpStr1, 5)) Par4 = str2int(TmpStr1);
+    
+  //********************************************************************************
   // Config commands
+  //********************************************************************************
 
   if (strcasecmp_P(Command, PSTR("Config")) == 0)
   {
@@ -94,6 +51,10 @@ void ExecuteCommand(const char *Line)
     String strP3 = parseString(strLine, 5);
     String strP4 = parseString(strLine, 6);
     String strP5 = parseString(strLine, 7);
+
+    if (setting.equalsIgnoreCase(F("AutoConnect"))){
+      Settings.AutoConnect = (Par2 == 1);
+    }
 
     if (setting.equalsIgnoreCase(F("Baudrate"))){
       if (Par2){
@@ -122,6 +83,16 @@ void ExecuteCommand(const char *Line)
       strcpy(Settings.Group, strP1.c_str());
     }
 
+  #if FEATURE_I2C
+    if (setting.equalsIgnoreCase(F("I2C"))){
+      if(Par2 == 0){
+        Wire.begin();
+      }else{
+        Wire.begin(Par2,Par3);
+      }
+    }
+  #endif
+  
     if (setting.equalsIgnoreCase(F("Network"))){
       char tmpString[26];
       strP1.toCharArray(tmpString, 26);
@@ -136,8 +107,35 @@ void ExecuteCommand(const char *Line)
       IPAddress gw = Settings.Gateway;
       IPAddress subnet = Settings.Subnet;
       IPAddress dns = Settings.DNS;
-//      WiFi.config(ip, gw, subnet, dns);
     }
+
+    if (setting.equalsIgnoreCase(F("NodeListMax"))){
+      Settings.NodeListMax = Par2;
+    }
+
+    #if FEATURE_PLUGINS
+    if (setting.equalsIgnoreCase(F("Plugins"))){
+      int parampos = getParamStartPos(strLine, 3);
+      if (parampos != -1) {
+        params = strLine.substring(parampos);
+        logger->println(params);
+        byte plugin[PLUGIN_MAX];
+        for (byte x = 0; x < PLUGIN_MAX; x++){
+          plugin[x]=0;
+          Plugin_Enabled[x] = false;
+        }
+        parseBytes(params.c_str(), ',', plugin, PLUGIN_MAX, 10);
+        for (byte p = 0; p < PLUGIN_MAX; p++){
+          if(plugin[p] == 0)
+            break;
+          if(plugin[p] != 0)
+            for (byte x = 0; x < PLUGIN_MAX; x++)
+              if(Plugin_id[x] == plugin[p])
+                Plugin_Enabled[x] = true;
+        }
+      }
+    }
+    #endif
 
     if (setting.equalsIgnoreCase(F("sendARP"))){
       Settings.UseGratuitousARP = (Par2 == 1);
@@ -146,8 +144,23 @@ void ExecuteCommand(const char *Line)
       Settings.Port = Par2;
     }
 
+    if (setting.equalsIgnoreCase(F("Time"))){
+      Settings.UseTime = (Par2 == 1);
+    }
+
     if (setting.equalsIgnoreCase(F("Timezone"))){
       Settings.TimeZone = Par2;
+    }
+
+    if (setting.equalsIgnoreCase(F("TimerMax"))){
+      Settings.TimerMax = Par2;
+    }
+
+    if (setting.equalsIgnoreCase(F("UserVarNumericMax"))){
+      Settings.nUserVarMax = Par2;
+    }
+    if (setting.equalsIgnoreCase(F("UserVarStringMax"))){
+      Settings.sUserVarMax = Par2;
     }
 
     if (setting.equalsIgnoreCase(F("WifiSSID")))
@@ -165,24 +178,11 @@ void ExecuteCommand(const char *Line)
     if (setting.equalsIgnoreCase(F("WifiAPKey")))
       strcpy(SecuritySettings.WifiAPKey, strP1.c_str());
 
-    if (setting.equalsIgnoreCase(F("MSGBUS"))){
-      if(strP1.equalsIgnoreCase(F("UDP")))
-        Settings.UseMSGBusUDP = (Par3 == 1);
-      if(strP1.equalsIgnoreCase(F("MQTT")))
-        Settings.UseMSGBusMQTT = (Par3 == 1);
-    }
-
-    #if FEATURE_MQTT
-      if (setting.equalsIgnoreCase(F("MQTT"))){
-        char tmpString[26];
-        strP1.toCharArray(tmpString, 26);
-        str2ip(tmpString, Settings.Controller_IP);
-        Settings.ControllerPort = strP2.toInt();
-        strcpy(SecuritySettings.ControllerUser, strP3.c_str());
-        strcpy(SecuritySettings.ControllerPassword, strP4.c_str());
-        MQTTConnect();
-      }
-    #endif
+    if (setting.equalsIgnoreCase(F("WifiBSSID")))
+      parseBytes(strP1.c_str(), ':', Settings.BSSID, 6, 16);
+     
+    if (setting.equalsIgnoreCase(F("WifiChannel")))
+      Settings.WifiChannel = Par2;
 
     if (setting.equalsIgnoreCase(F("Rules"))){
       if(strP1.equalsIgnoreCase(F("Clock")))
@@ -197,85 +197,73 @@ void ExecuteCommand(const char *Line)
 
   }
 
-  if (strcasecmp_P(Command, PSTR("Reset")) == 0)
+
+  //********************************************************************************
+  // Operational commands
+  //********************************************************************************
+
+  if (strcasecmp_P(Command, PSTR("DeepSleep")) == 0)
   {
     success = true;
-    SPIFFS.end();
-    Serial.println(F("RESET: formatting..."));
-    SPIFFS.format();
-    Serial.println(F("RESET: formatting done..."));
-    if (SPIFFS.begin()){
-      fs::File f = SPIFFS.open(FILE_BOOT, "w");
-      f.println(F("on System#Config do"));
-      f.println(F("  Config,WifiSSID,"));
-      f.println(F("  Config,WifiKey,"));
-      f.println(F("endon"));
-      f.close();
-      f = SPIFFS.open(FILE_RULES, "w");
-      f.close();
-    }
-    else{
-      Serial.println(F("RESET: FORMAT SPIFFS FAILED!"));
-    }
+    #if defined(ESP8266)
+      ESP.deepSleep(Par1 * 1000000, WAKE_RF_DEFAULT); // Sleep for set delay
+    #endif
   }
-  
-  // operational commands
-  #if FEATURE_MQTT
-  if (strcasecmp_P(Command, PSTR("SubScribe")) == 0)
+
+  if (strcasecmp_P(Command, PSTR("Delay")) == 0)
   {
     success = true;
-    MQTTclient.subscribe(&Line[10]);
+    delay(Par1);
   }
-  #endif
-  
-  #if FEATURE_MSGBUS
-    if (strcasecmp_P(Command, PSTR("MSGBus")) == 0)
-    {
-      success = true;
-      String msg = Line;
-      msg = msg.substring(7);
-    
-      if(Settings.UseMSGBusUDP){ 
-        if (msg[0] == '>') {
-          for (byte x = 0; x < CONFFEATURE_IRM_QUEUE_MAX ; x++) {
-            if (confirmQueue[x].State == 0) {
-              confirmQueue[x].Name = msg;
-              confirmQueue[x].Attempts = 9;
-              confirmQueue[x].State = 1;
-              confirmQueue[x].TimerTicks = 3;
-              UDPSend(msg);
-              break;
-            }
-          }
-        }
-        else
-          UDPSend(msg);
+
+  #if FEATURE_I2C
+  if (strcasecmp_P(Command, PSTR("I2C")) == 0)
+  {
+    success = true;
+    byte error, address;
+    for (address = 1; address <= 127; address++) {
+      Wire.beginTransmission(address);
+      error = Wire.endTransmission();
+      if (error == 0) {
+        String log = F("I2C  : Found 0x");
+        log += String(address, HEX);
+        logger->println(log);
       }
-    
-      #if FEATURE_MQTT
-        if(Settings.UseMSGBusMQTT){ 
-          String topic = F(MSGBUS_TOPIC);
-          String payload = "";
-          int pos = msg.indexOf('=');
-          if(pos != -1){
-            topic += msg.substring(0,pos);
-            payload = msg.substring(pos+1);
-          }
-          MQTTclient.publish(topic.c_str(), payload.c_str(),Settings.MQTTRetainFlag);
-        }
-      #endif
     }
+  }
   #endif
 
   #if FEATURE_TIME
     if (strcasecmp_P(Command, PSTR("NTP")) == 0)
     {
       success = true;
-      getNtpTime();
-      telnetLog(getTimeString(':'));
+      unsigned long  t = updateNtp();
+      if(t)
+        logger->println(getTimeString(':'));
+      else
+        logger->println(F("No Reply!"));
     }
   #endif
 
+  if (strcasecmp_P(Command, PSTR("ParseFromJSON")) == 0)
+  {
+    success = true;
+    String strLine = Line;
+    String varName = parseString(strLine, 2);
+    String jsonName = parseString(strLine, 3);
+    int jsonPos = getParamStartPos(strLine, 4);
+    String jsonPayload = strLine.substring(jsonPos);
+    String strJSONValue = parseJSON(jsonPayload, jsonName);
+    if(strJSONValue != ""){
+      if(strJSONValue[0] == '"'){
+        strJSONValue.replace("\"","");
+        setSvar(varName, strJSONValue);
+      }else{
+        setNvar(varName, strJSONValue.toFloat());
+      }
+    }
+  }
+  
   if (strcasecmp_P(Command, PSTR("Reboot")) == 0)
   {
     success = true;
@@ -285,6 +273,21 @@ void ExecuteCommand(const char *Line)
     reboot();
   }
 
+  if (strcasecmp_P(Command, PSTR("Reset")) == 0)
+  {
+    success = true;
+    SPIFFS.end();
+    logger->println(F("RESET: formatting..."));
+    SPIFFS.format();
+    logger->println(F("RESET: formatting done..."));
+    if (SPIFFS.begin()){
+      initFiles();
+    }
+    else{
+      logger->println(F("RESET: FORMAT SPIFFS FAILED!"));
+    }
+  }
+  
   if (strcasecmp_P(Command, PSTR("SendToUDP")) == 0)
   {
     success = true;
@@ -296,6 +299,7 @@ void ExecuteCommand(const char *Line)
     byte ipaddress[4];
     str2ip((char*)ip.c_str(), ipaddress);
     IPAddress UDP_IP(ipaddress[0], ipaddress[1], ipaddress[2], ipaddress[3]);
+    WiFiUDP portUDP;
     portUDP.beginPacket(UDP_IP, port.toInt());
     #if defined(ESP8266)
       portUDP.write(message.c_str(), message.length());
@@ -346,6 +350,29 @@ void ExecuteCommand(const char *Line)
   {
     success = true;
     Settings.SerialTelnet = Par1;
+  }
+
+  if (strcasecmp_P(Command, PSTR("Settings")) == 0)
+  {
+    success = true;
+    char str[20];
+    logger->println();
+
+    logger->println(F("System Info"));
+    IPAddress ip = WiFi.localIP();
+    sprintf_P(str, PSTR("%u.%u.%u.%u"), ip[0], ip[1], ip[2], ip[3]);
+    logger->print(F("  Name          : ")); logger->println(Settings.Name);
+    logger->print(F("  IP Address    : ")); logger->println(str);
+    logger->print(F("  Build         : ")); logger->print((int)BUILD); logger->println(BUILD_NOTES);
+    String core = getSystemLibraryString();
+    logger->print(F("  Core          : ")); logger->println(core);
+    logger->print(F("  Wifi SSID     : ")); logger->println(SecuritySettings.WifiSSID);
+    logger->print(F("  Wifi Key      : ")); logger->println(SecuritySettings.WifiKey);
+    logger->print(F("  Wifi Channel  : ")); logger->println(Settings.WifiChannel);
+    sprintf_P(str, PSTR("%02X:%02X:%02X:%02X:%02X:%02X"), Settings.BSSID[0], Settings.BSSID[1], Settings.BSSID[2], Settings.BSSID[3],Settings.BSSID[4],Settings.BSSID[5]);
+    logger->print(F("  Wifi BSSID    : ")); logger->println(str);
+    logger->print(F("  Wifi Enabled  : ")); logger->println(Settings.Wifi);
+    logger->print(F("  Wifi Status   : ")); logger->println(WiFi.status());    
   }
 
 #if FEATURE_RULES
@@ -399,6 +426,80 @@ void ExecuteCommand(const char *Line)
     }
   }
 
+  if (strcasecmp_P(Command, PSTR("StringLength")) == 0)
+  {
+    success = true;
+    String strLine = Line;
+    String varName = parseString(strLine, 2);
+    String varNameSource = parseString(strLine, 3);
+    String tmp = getSvar(varNameSource);
+    setNvar(varName, tmp.length(),0);
+  }
+
+  if (strcasecmp_P(Command, PSTR("StringReplace")) == 0)
+  {
+    success = true;
+    String strLine = Line;
+    String varName = parseString(strLine, 2);
+    String replace = parseString(strLine, 3);
+    String replaceWith = parseString(strLine, 4);
+    String tmp = getSvar(varName);
+    tmp.replace(replace,replaceWith);
+    setSvar(varName, tmp);
+  }
+  
+  if (strcasecmp_P(Command, PSTR("StringSubstring")) == 0)
+  {
+    success = true;
+    String strLine = Line;
+    String varName = parseString(strLine, 2);
+    String varNameSource = parseString(strLine, 3);
+    String strStart = parseString(strLine, 4);
+    String strEnd = parseString(strLine, 5);
+    int startPos = 0;
+    int endPos = 0;
+
+    String tmp = getSvar(varNameSource);
+    if(strStart[0] != '"'){
+      startPos = strStart.toInt();
+    }else{
+      strStart.replace("\"","");
+      startPos = tmp.indexOf(strStart);
+    }
+
+    if(strEnd == ""){
+      endPos = tmp.length();
+    }else{
+      if(strEnd[0] != '"'){
+        endPos = strEnd.toInt();
+      }else{
+        strEnd.replace("\"","");
+        endPos = tmp.indexOf(strEnd);
+      }
+    }
+    
+    tmp = tmp.substring(startPos,endPos);
+    setSvar(varName, tmp);
+  }
+
+  if (strcasecmp_P(Command, PSTR("Syslog")) == 0)
+  {
+    success = true;
+    String log = Line;
+    log = log.substring(7);
+    syslog(log);
+  }
+
+  #if FEATURE_ADC_VCC
+    if (strcasecmp_P(Command, PSTR("VCCRead")) == 0)
+    {
+      success = true;
+      String strLine = Line;
+      String varName = parseString(strLine, 2);
+      setNvar(varName, ESP.getVcc() / 1000.0);
+    }
+  #endif
+
   if (strcasecmp_P(Command, PSTR("webPrint")) == 0)
   {
     success = true;
@@ -424,41 +525,37 @@ void ExecuteCommand(const char *Line)
   
 #endif
 
-  if (strcasecmp_P(Command, PSTR("Settings")) == 0)
+  if (strcasecmp_P(Command, PSTR("WifiConnect")) == 0)
   {
     success = true;
-    char str[20];
-    Serial.println();
-
-    Serial.println(F("System Info"));
-    IPAddress ip = WiFi.localIP();
-    sprintf_P(str, PSTR("%u.%u.%u.%u"), ip[0], ip[1], ip[2], ip[3]);
-    Serial.print(F("  IP Address    : ")); Serial.println(str);
-    Serial.print(F("  Build         : ")); Serial.println((int)BUILD);
-    String core = getSystemLibraryString();
-    Serial.print(F("  Core          : ")); Serial.println(core);
-    Serial.print(F("  WifiSSID      : ")); Serial.println(SecuritySettings.WifiSSID);
-    Serial.print(F("  WifiKey       : ")); Serial.println(SecuritySettings.WifiKey);
+    String strLine = Line;
+    String ssid = parseString(strLine, 2);
+    String key = parseString(strLine, 3);
+    strcpy(SecuritySettings.WifiSSID, ssid.c_str());
+    strcpy(SecuritySettings.WifiKey, key.c_str());
+    WiFi.begin(SecuritySettings.WifiSSID, SecuritySettings.WifiKey);
+//    WifiInit();
   }
 
-  if (strcasecmp_P(Command, PSTR("Syslog")) == 0)
+  if (strcasecmp_P(Command, PSTR("WifiInit")) == 0)
   {
     success = true;
-    String log = Line;
-    log = log.substring(7);
-    syslog(log);
+    WifiInit();
   }
-  
-  if (success)
-    telnetLog("OK");
-  else
-    telnetLog("???");
+
+  if(Settings.LogEvents){
+    if (success)
+      logger->println("OK");
+    else
+      logger->println("?");
+  }
 }
 
 
-/********************************************************************************************\
-  Find positional parameter in a char string
-  \*********************************************************************************************/
+//*********************************************************************************************
+// Find positional parameter in a char string
+//*********************************************************************************************
+
 boolean GetArgv(const char *string, char *argv, int argc)
 {
   int string_pos = 0, argv_pos = 0, argc_pos = 0;
@@ -498,3 +595,4 @@ boolean GetArgv(const char *string, char *argv, int argc)
   }
   return false;
 }
+

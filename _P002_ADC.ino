@@ -8,6 +8,8 @@
  * analogDebug <pin>                             Show analog value every second on telnet session
 */
 
+#ifdef USES_P002
+#define P002_BUILD            6
 #define PLUGIN_002
 #define PLUGIN_ID_002         2
 
@@ -20,7 +22,8 @@ boolean Plugin_002(byte function, String& cmd, String& params)
   {
     case PLUGIN_INFO:
       {
-        printWebTools += F("<TR><TD><TD>P002 - Analog");
+        printWebTools += F("<TR><TD>P002 - Analog<TD>");
+        printWebTools += P002_BUILD;
         break;
       }
           
@@ -61,7 +64,7 @@ boolean Plugin_002(byte function, String& cmd, String& params)
             byte pin = parseString(params,2).toInt();
             String debug = (String)analogRead(pin);
           #endif 
-          telnetLog(debug);
+          logger->println(debug);
         }
         break;
       }
@@ -69,3 +72,5 @@ boolean Plugin_002(byte function, String& cmd, String& params)
   }
   return success;
 }
+#endif
+
